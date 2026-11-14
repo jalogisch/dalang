@@ -30,7 +30,7 @@ Read this file completely before you work here. It applies to every agent, sub-a
 5. **Keep it small.** No framework, no dependency, no new option without a real need. Editing links, statistics, users and an API are left out on purpose.
 6. **Every admin text lives in `lang/en.php` and `lang/de.php`.** No text in the PHP code itself.
 7. **Accessibility is not optional:** labels for every field, error messages linked to their field, `lang` attribute.
-8. **The maintainer commits, tags and pushes.** Agents propose a file list and a message. The locks are in `.claude/settings.json` (no commit, no push, no ssh, no secret manager, no `rm -r`).
+8. **The maintainer commits, tags and pushes.** Agents propose a file list and a message. The locks are in `.claude/settings.json` (no commit, no push, no ssh, no `rm -r`).
 9. **"Done" needs proof.** Run the tests and show the output. Mark what is not tested as UNPROVEN.
 10. **One commit is one change.** One thing per commit, readable on its own, easy to revert. Propose several small commits instead of one big one. The subject follows Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `chore:` or `refactor:`, then a short English sentence in the imperative. A break gets `!` after the type or a `BREAKING CHANGE:` line in the body. The subjects become the changelog, so write them for a reader.
 
