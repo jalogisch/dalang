@@ -1,0 +1,35 @@
+# Keeps CHANGELOG.md in step with the git history: after every push to main (and every version tag)
+# bin/changelog.sh writes the file new, and the result is committed back if it changed.
+name: changelog
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions: {}
+
+# One run at a time, so two pushes in a row do not push against each other.
+concurrency: changelog
+
+jobs:
+  changelog:
+    # No loop: a push made with GITHUB_TOKEN starts no workflow anyway. The actor check and
+    # "[skip ci]" in the commit message are the second and third lock.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # to push the one commit below, nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main        # also for a tag push: the changelog lives on main
+          fetch-depth: 0   # the whole history and all tags
+      - name: write CHANGELOG.md and commit it if it changed
+        run: |
+          sh bin/changelog.sh
+          if git diff --quiet -- CHANGELOG.md; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: update changelog [skip ci]' -- CHANGELOG.md
+          git push origin main
