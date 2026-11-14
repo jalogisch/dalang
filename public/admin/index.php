@@ -233,20 +233,35 @@ $bookmarklet = 'javascript:void(open(' . json_encode($cfg['base_url'] . '/admin/
 <meta name="color-scheme" content="light dark">
 <title><?= h($t['title']) ?></title>
 <style nonce="<?= h($nonce) ?>">
-body { font: 1rem/1.5 system-ui, sans-serif; max-width: 60rem; margin: 0 auto; padding: 1rem; }
-label { display: block; margin-top: .75rem; font-weight: 600; }
-input[type=url], input[type=text], input[type=password] { width: 100%; max-width: 40rem; padding: .4rem; font: inherit; box-sizing: border-box; }
-button { display: block; font: inherit; padding: .4rem .8rem; margin-top: .75rem; }
+:root { color-scheme: light dark; --line: #8886; --stripe: #8881; --accent: #2b6cb0; }
+* { box-sizing: border-box; }
+body { font: 1rem/1.5 system-ui, sans-serif; max-width: 72rem; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+h1 { margin: .5rem 0; } h2 { margin: 2rem 0 .5rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+label { display: block; margin-top: .9rem; font-weight: 600; }
+input[type=url], input[type=text], input[type=password] { width: 100%; max-width: 40rem; padding: .55rem .7rem; font: inherit; border: 1px solid var(--line); border-radius: 6px; }
+input[type=file] { font: inherit; margin-top: .25rem; }
+button { display: block; font: inherit; min-height: 44px; padding: .45rem 1rem; margin-top: .9rem; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+main > form button, .created button { background: var(--accent); color: #fff; border-color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 td button, header button { margin: 0; }
-.hint { margin: 0; font-size: .9rem; }
+td button { min-height: 36px; padding: .25rem .7rem; }
+.hint { margin: .1rem 0 0; font-size: .9rem; opacity: .85; }
 .err { margin: .25rem 0 0; font-weight: 600; color: #b00020; }
-.msg, .created { border: 2px solid; padding: .75rem; }
-.created a { font-size: 1.6rem; font-weight: 700; word-break: break-all; }
-table { border-collapse: collapse; width: 100%; }
-caption { text-align: left; font-weight: 600; }
-th, td { text-align: left; vertical-align: top; padding: .3rem .5rem; border-top: 1px solid; word-break: break-word; }
-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; }
-@media (prefers-color-scheme: dark) { .err { color: #ff8a80; } }
+.msg, .created { border: 2px solid; border-radius: 6px; padding: .75rem 1rem; }
+.created a { font-size: 1.6rem; font-weight: 700; overflow-wrap: anywhere; }
+.tabelle { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 48rem; table-layout: fixed; font-size: .95rem; }
+caption { text-align: left; font-weight: 600; padding: .25rem 0 .5rem; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .6rem; border-top: 1px solid var(--line); }
+thead th { position: sticky; top: 0; background: Canvas; border-bottom: 2px solid var(--line); white-space: nowrap; }
+tbody tr:nth-child(even) { background: var(--stripe); }
+th:nth-child(1) { width: 9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+td:nth-child(2) a, td:nth-child(3) { overflow-wrap: anywhere; }
+th:nth-child(3) { width: 28%; }
+th:nth-child(4) { width: 7.5rem; } td:nth-child(4) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:nth-child(5) { width: 6.5rem; }
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+@media (prefers-color-scheme: dark) { :root { --accent: #63a4ff; } main > form button, .created button { color: #111; } .err { color: #ff8a80; } }
 </style>
 </head>
 <body>
@@ -327,6 +342,7 @@ document.getElementById('copy').addEventListener('click', function () {
 <?php if (!$rows): ?>
 <p><?= h($t['list_empty']) ?></p>
 <?php else: ?>
+<div class="tabelle">
 <table>
 <caption><?= h(sprintf($t['list_count'], count($rows))) ?></caption>
 <thead><tr><th scope="col"><?= h($t['col_code']) ?></th><th scope="col"><?= h($t['col_url']) ?></th><th scope="col"><?= h($t['col_title']) ?></th><th scope="col"><?= h($t['col_created']) ?></th><th scope="col"><?= h($t['col_action']) ?></th></tr></thead>
@@ -336,12 +352,13 @@ document.getElementById('copy').addEventListener('click', function () {
 <th scope="row"><?= h($row['code']) ?></th>
 <td><a href="<?= h($row['url']) ?>" rel="noreferrer noopener"><?= h($row['url']) ?></a></td>
 <td><?= h($row['title']) ?></td>
-<td><?= h($row['created']) ?></td>
+<td><time datetime="<?= h($row['created']) ?>"><?= h(substr($row['created'], 0, 10)) ?></time></td>
 <td><form method="post" action="/admin/"><?= $csrf ?><input type="hidden" name="action" value="delete"><input type="hidden" name="code" value="<?= h($row['code']) ?>"><button aria-label="<?= h(sprintf($t['delete_label'], $row['code'])) ?>"><?= h($t['delete']) ?></button></form></td>
 </tr>
 <?php endforeach ?>
 </tbody>
 </table>
+</div>
 <?php endif ?>
 </main>
 <?php endif ?>

@@ -40,7 +40,7 @@ return [
     'col_code' => 'Kürzel',
     'col_url' => 'Ziel',
     'col_title' => 'Titel',
-    'col_created' => 'Angelegt (UTC)',
+    'col_created' => 'Angelegt',
     'col_action' => 'Aktion',
     'delete' => 'Löschen',
     'delete_label' => '%s löschen',

@@ -40,7 +40,7 @@ return [
     'col_code' => 'Code',
     'col_url' => 'Target',
     'col_title' => 'Title',
-    'col_created' => 'Created (UTC)',
+    'col_created' => 'Created',
     'col_action' => 'Action',
     'delete' => 'Delete',
     'delete_label' => 'Delete %s',
