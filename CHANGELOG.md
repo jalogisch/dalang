@@ -1,5 +1,10 @@
 # changelog
 
+## Unreleased
+
+- docs: describe agent locks without tool names
+- chore: add agent locks
+
 ## v0.1.0 - 2026-11-14
 
 - docs: add security policy
