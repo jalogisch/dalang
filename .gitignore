@@ -1,0 +1,16 @@
+# local agent settings
+.claude/settings.local.json
+
+# real configuration and data never go into git
+/config.php
+/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.csv
+
+# local test data (created by deploy/test.sh)
+/deploy/.testdaten/
+
+.DS_Store
