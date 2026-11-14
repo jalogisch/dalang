@@ -1,7 +1,8 @@
 # changelog
 
-## Unreleased
+## v0.1.1 - 2026-11-15
 
+- fix: make the admin link table readable
 - docs: describe agent locks without tool names
 - chore: add agent locks
 
