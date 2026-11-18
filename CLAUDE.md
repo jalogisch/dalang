@@ -33,6 +33,14 @@ Read this file completely before you work here. It applies to every agent, sub-a
 8. **The maintainer commits, tags and pushes.** Agents propose a file list and a message. The locks are in `.claude/settings.json` (no commit, no push, no ssh, no `rm -r`).
 9. **"Done" needs proof.** Run the tests and show the output. Mark what is not tested as UNPROVEN.
 10. **One commit is one change.** One thing per commit, readable on its own, easy to revert. Propose several small commits instead of one big one. The subject follows Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `chore:` or `refactor:`, then a short English sentence in the imperative. A break gets `!` after the type or a `BREAKING CHANGE:` line in the body. The subjects become the changelog, so write them for a reader.
+11. **Documentation is in plain language.** English follows Plain Language (ISO 24495-1). German uses Einfache Sprache, not Leichte Sprache. Write for an international reader who may not be a native speaker:
+    - Short sentences with one main idea each, under 20 words.
+    - Common words. One term for one thing, used the same way everywhere. Button and view names exactly as in `lang/*.php`.
+    - Active voice: say who does what. The maintainer writes as "I".
+    - No idioms, slang, metaphors or wordplay. Simple verbs instead of phrasal verbs ("remove", not "take out").
+    - Explain abbreviations and technical terms the first time they appear.
+    - Main point first, then the details.
+    - Explicit dates (2026-11-18) and units. No "next Tuesday", no "a couple".
 
 ## Versions and releases
 
