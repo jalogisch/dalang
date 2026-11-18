@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- docs: add the plain language rule for documentation
 - docs: rewrite README and guides in plain language
 
 ## v0.2.0 - 2026-11-18
