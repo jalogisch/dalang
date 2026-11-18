@@ -32,7 +32,18 @@ const is = (name, got, want) => {
     await Promise.all([page.waitForURL(/\/admin\//), page.click('button')]);
     await page.waitForSelector('#url');
   };
-  const count = async (page) => (await page.locator('tbody tr').count());
+  // The list has its own view: open it in a second tab of the same session, so the form stays as it is.
+  const list = async (page) => {
+    const tab = await page.context().newPage();
+    await tab.goto(`${BASE}/admin/?view=links`);
+    return tab;
+  };
+  const count = async (page) => {
+    const tab = await list(page);
+    const n = await tab.locator('tbody tr').count();
+    await tab.close();
+    return n;
+  };
   // Clicks "Create", reads the short link from the page and calls it: once without following
   // (status and Location), once in the browser (where do I land).
   const createAndFollow = async (page, name, target) => {
@@ -78,7 +89,18 @@ const is = (name, got, want) => {
   await page.fill('#code', 'e2e-bm');
   is('prefill: short link uses the code', await createAndFollow(page, 'prefill', bm), 'e2e-bm');
   is('prefill: three links in the list', await count(page), 3);
-  is('prefill: title is in the list', await page.locator('tbody tr', { hasText: 'e2e-bm' }).locator('td').nth(1).innerText(), 'From the "bookmarklet"');
+  const tab = await list(page);
+  is('prefill: title is in the list', await tab.locator('tbody tr', { hasText: 'e2e-bm' }).locator('td').nth(1).innerText(), 'From the "bookmarklet"');
+  await tab.close();
+  is('the form page shows no list', await page.locator('table').count(), 0);
+
+  // The menu: three views on the same address.
+  await Promise.all([page.waitForURL(/view=links/), page.click('nav a[href="/admin/?view=links"]')]);
+  is('menu: list view shows the table', await page.locator('table').count(), 1);
+  is('menu: list view is marked', await page.getAttribute('nav a[aria-current="page"]', 'href'), '/admin/?view=links');
+  await Promise.all([page.waitForURL(/view=tools/), page.click('nav a[href="/admin/?view=tools"]')]);
+  is('menu: tools view has the import', await page.locator('#csv').count(), 1);
+  is('menu: tools view has no form', await page.locator('#url').count(), 0);
 
   // The bookmarklet without a session: log in first, the address must survive the login.
   const fresh = await newPage();

@@ -49,7 +49,7 @@ The file contains all your links. Do not put it into a git repository.
 ## 2. import
 
 1. Log in at `/admin/`.
-2. Under "Backup and import", choose the file and click "Import CSV".
+2. Open "Tools". Under "Backup and import", choose the file and click "Import CSV".
 3. Read the message: `Import done: 250 new, 0 already there, 0 rejected.`
 
 Codes that already exist in dalang stay as they are. So you can run the import twice without harm, the second run reports everything as "already there".

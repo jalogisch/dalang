@@ -1,5 +1,6 @@
 <?php
 // dalang - admin. Reachable only at /admin/. Login, add, list, delete, CSV import and export.
+// Three views on the same address: the form (default, the bookmarklet opens it), ?view=links, ?view=tools.
 // Rule: only a POST with a valid CSRF token changes anything. A GET only shows.
 declare(strict_types=1);
 
@@ -63,6 +64,8 @@ function back(string $query = ''): never
 // The bookmarklet sends ?url=...&title=... - this only prefills the form.
 $prefill = ['url' => substr(field($_GET, 'url'), 0, 2000), 'title' => clean_title(field($_GET, 'title'))];
 $prefillQuery = $prefill['url'] !== '' ? http_build_query($prefill) : '';
+// Anything unknown shows the form.
+$view = in_array(field($_GET, 'view'), ['links', 'tools'], true) ? field($_GET, 'view') : 'add';
 
 // --- actions (POST only) ------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -152,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Name code and target, so a slip can be typed in again.
             $_SESSION['flash'] = ['msg' => sprintf($t['msg_deleted'], $row['code'], $row['url'])];
         }
-        back();
+        back('view=links');
     }
 
     if ($action === 'import') {
@@ -161,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? fopen($file['tmp_name'], 'r') : false;
         if ($handle === false) {
             $_SESSION['flash'] = ['errors' => ['csv' => 'err_upload']];
-            back();
+            back('view=tools');
         }
         // Columns by position: code, url, title, created. More columns are ignored.
         $insert = $db->prepare('INSERT OR IGNORE INTO links (code, url, title, created) VALUES (?, ?, ?, ?)');
@@ -192,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg .= ' ' . sprintf($t['msg_rejected_lines'], implode(', ', array_slice($rejected, 0, 20)));
         }
         $_SESSION['flash'] = ['msg' => $msg];
-        back();
+        back('view=tools');
     }
 
     back();
@@ -231,7 +234,7 @@ $bookmarklet = 'javascript:void(open(' . json_encode($cfg['base_url'] . '/admin/
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title><?= h($t['title']) ?></title>
+<title><?= $loggedIn ? h($t['nav_' . $view]) . ' - ' : '' ?><?= h($t['title']) ?></title>
 <style nonce="<?= h($nonce) ?>">
 :root { color-scheme: light dark; --line: #8886; --stripe: #8881; --accent: #2b6cb0; }
 * { box-sizing: border-box; }
@@ -260,6 +263,9 @@ td:nth-child(2) a, td:nth-child(3) { overflow-wrap: anywhere; }
 th:nth-child(3) { width: 28%; }
 th:nth-child(4) { width: 7.5rem; } td:nth-child(4) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 th:nth-child(5) { width: 6.5rem; }
+nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: .25rem 0 0; }
+nav a { display: inline-block; padding: .6rem .2rem; border-bottom: 3px solid transparent; }
+nav a[aria-current] { font-weight: 700; border-color: var(--accent); }
 header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
 @media (prefers-color-scheme: dark) { :root { --accent: #63a4ff; } main > form button, .created button { color: #111; } .err { color: #ff8a80; } }
 </style>
@@ -286,6 +292,11 @@ header { display: flex; justify-content: space-between; align-items: center; fle
 <button><?= h($t['logout']) ?></button>
 </form>
 </header>
+<nav aria-label="<?= h($t['nav']) ?>">
+<?php foreach (['add' => '/admin/', 'links' => '/admin/?view=links', 'tools' => '/admin/?view=tools'] as $name => $href): ?>
+<a href="<?= $href ?>"<?= $name === $view ? ' aria-current="page"' : '' ?>><?= h($t['nav_' . $name]) ?></a>
+<?php endforeach ?>
+</nav>
 <main>
 <?php if (isset($flash['created'])): $short = $cfg['base_url'] . '/' . $flash['created']; ?>
 <div class="created" role="status">
@@ -306,6 +317,7 @@ document.getElementById('copy').addEventListener('click', function () {
 <p class="msg" role="status"><?= h($flash['msg']) ?></p>
 <?php endif ?>
 
+<?php if ($view === 'add'): ?>
 <h2><?= h($t['add_heading']) ?></h2>
 <form method="post" action="/admin/">
 <?= $csrf ?>
@@ -321,6 +333,7 @@ document.getElementById('copy').addEventListener('click', function () {
 <input type="text" id="title" name="title" maxlength="1000" value="<?= h($old['title']) ?>">
 <button><?= h($t['add']) ?></button>
 </form>
+<?php elseif ($view === 'tools'): ?>
 
 <h2><?= h($t['csv_heading']) ?></h2>
 <p><a href="/admin/?export"><?= h($t['export']) ?></a> - <?= h($t['export_hint']) ?></p>
@@ -337,6 +350,7 @@ document.getElementById('copy').addEventListener('click', function () {
 <h2><?= h($t['bookmarklet_heading']) ?></h2>
 <p><?= h($t['bookmarklet_hint']) ?> <a href="<?= h($bookmarklet) ?>"><?= h($t['bookmarklet_name']) ?></a></p>
 
+<?php else: ?>
 <h2><?= h($t['list_heading']) ?></h2>
 <?php $rows = $db->query('SELECT code, url, title, created FROM links ORDER BY created DESC, code')->fetchAll(); ?>
 <?php if (!$rows): ?>
@@ -359,6 +373,7 @@ document.getElementById('copy').addEventListener('click', function () {
 </tbody>
 </table>
 </div>
+<?php endif ?>
 <?php endif ?>
 </main>
 <?php endif ?>

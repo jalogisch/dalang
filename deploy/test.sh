@@ -51,7 +51,7 @@ head_of() { grep -i "^$1:" "$TMP/head" | head -1 | sed 's/^[^:]*: *//'; }
 token()   { sed -n 's/.*name="csrf" value="\([0-9a-f]*\)".*/\1/p' "$TMP/body" | head -1; }
 has()     { if grep -qF -- "$2" "$TMP/body"; then ok "$1"; else fail "$1" "text not found: $2"; fi; }
 hasnot()  { if grep -qF -- "$2" "$TMP/body"; then fail "$1" "text found: $2"; else ok "$1"; fi; }
-links()   { req "$BASE/admin/"; sed -n 's/.*<caption>\([0-9]*\) links.*/\1/p' "$TMP/body"; }
+links()   { req "$BASE/admin/?view=links"; sed -n 's/.*<caption>\([0-9]*\) links.*/\1/p' "$TMP/body"; }
 
 # redirect PATH TARGET: 301 with exactly this Location
 redirect() {
@@ -72,7 +72,7 @@ locked() {
 post() {
   set -- --data-urlencode "csrf=$TOKEN" "$@"
   req "$@" "$BASE/admin/"
-  POSTCODE=$CODE
+  POSTCODE=$CODE; POSTLOC=$(head_of Location)
   req "$BASE/admin/"
   TOKEN=$(token)
 }
@@ -137,12 +137,29 @@ sleep 6
 post --data-urlencode action=login --data-urlencode "password=$PASSWORD"
 has "right password logs in" 'name="url"'
 if [ "$COOKIE" != "$BEFORE" ]; then ok "new session id after login"; else fail "new session id after login" "same cookie"; fi
+
+echo "--- views"
+has "form is the default view" 'name="url"'
+has "form view is marked in the menu" 'href="/admin/" aria-current="page"'
+hasnot "form view has no list" '<table'
+hasnot "form view has no import" 'name="csv"'
+req "$BASE/admin/?view=links"
+has "list view is marked in the menu" 'href="/admin/?view=links" aria-current="page"'
+hasnot "list view has no form" 'name="url"'
+req "$BASE/admin/?view=tools"
+has "tools view is marked in the menu" 'href="/admin/?view=tools" aria-current="page"'
+has "tools view has the import" 'name="csv"'
+hasnot "tools view has no form" 'name="url"'
+req "$BASE/admin/?view=nonsense"; has "unknown view shows the form" 'name="url"'
+req "$BASE/admin/?view%5B%5D=x"; has "view as array shows the form" 'name="url"'
+req "$BASE/admin/?view=tools"
 has "bookmarklet link is offered" "href=\"javascript:void(open(&quot;$SHORT/admin/?url=&quot;+encodeURIComponent(location.href)"
 
 echo "--- create"
 add 'https://example.org/target?a=1&b=2' test-1 'First <script>alert(1)</script>'
 has "created link is shown" "<a id=\"short\" href=\"$SHORT/test-1\">"
 has "copy button is there" 'id="copy"'
+req "$BASE/admin/?view=links"
 has "title is escaped" 'First &lt;script&gt;alert(1)&lt;/script&gt;'
 hasnot "title is not raw" '<script>alert(1)'
 redirect /test-1 'https://example.org/target?a=1&b=2'
@@ -199,6 +216,7 @@ hasnot "prefilled value is escaped" '<script>alert(2)'
 echo "--- delete"
 req "$BASE/admin/"; TOKEN=$(token)
 post --data-urlencode action=delete --data-urlencode code=-a-
+is "delete goes back to the list" "$POSTLOC" "/admin/?view=links"
 has "delete names code and target" 'Deleted: -a-, which pointed to https://example.org/minus'
 redirect /-a- "$FALLBACK/-a-"
 is "one link less" "$(links)" "$((N - 1))"
@@ -213,9 +231,10 @@ bad-1,javascript:alert(1),Bad target,2022-01-01 00:00:00,1
 Bad-2,https://example.org/bad,Bad code,2022-01-01 00:00:00,1
 test-1,https://example.org/overwrite,Must not overwrite,2022-01-01 00:00:00,1
 CSV
-import() { req -F "csrf=$TOKEN" -F action=import -F "csv=@$1;type=text/csv" "$BASE/admin/"; POSTCODE=$CODE; req "$BASE/admin/"; TOKEN=$(token); }
+import() { req -F "csrf=$TOKEN" -F action=import -F "csv=@$1;type=text/csv" "$BASE/admin/"; POSTCODE=$CODE; POSTLOC=$(head_of Location); req "$BASE/admin/"; TOKEN=$(token); }
 req "$BASE/admin/"; TOKEN=$(token)
 import "$TMP/in.csv"
+is "import goes back to the tools" "$POSTLOC" "/admin/?view=tools"
 has "import counts" 'Import done: 3 new, 1 already there, 2 rejected. Rejected lines: 5, 6'
 redirect /csv-2 'http://example.org/two?x=1&y=2'
 redirect /test-1 'https://example.org/target?a=1&b=2'

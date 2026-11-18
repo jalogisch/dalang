@@ -49,7 +49,7 @@ In der Datei stehen alle deine Links. Leg sie nicht in ein Git-Repo.
 ## 2. einlesen
 
 1. Melde dich unter `/admin/` an.
-2. Wähle unter „Sichern und einlesen“ die Datei und klick „CSV einlesen“.
+2. Öffne „Werkzeuge“. Wähle unter „Sichern und einlesen“ die Datei und klick „CSV einlesen“.
 3. Lies die Meldung: `Import fertig: 250 neu, 0 schon vorhanden, 0 abgelehnt.`
 
 Kürzel, die es in dalang schon gibt, bleiben, wie sie sind. Du kannst also zweimal einlesen, ohne dass etwas passiert. Der zweite Lauf meldet alles als „schon vorhanden“.

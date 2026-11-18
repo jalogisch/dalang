@@ -9,7 +9,7 @@ Read this file completely before you work here. It applies to every agent, sub-a
 | Path | What it is |
 |---|---|
 | `public/index.php` | Public entry point. Short code -> 301. Unknown -> 301 to `fallback_url`, or 404 if that is empty or not set. Database error -> 503. Never writes. |
-| `public/admin/index.php` | Admin, reachable only at `/admin/`: login, add, list, delete, CSV import and export, bookmarklet. |
+| `public/admin/index.php` | Admin, reachable only at `/admin/`: login, add, list, delete, CSV import and export, bookmarklet. Three views on that address: the form (default, the bookmarklet opens it), `?view=links`, `?view=tools`. |
 | `lib.php` | Shared code: load config, open database, validate code and URL, pick the language. |
 | `lang/*.php` | Admin texts, one array per language. English is the fallback. |
 | `config.example.php` | Template for `config.php`. Placeholders only. |
