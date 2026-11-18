@@ -1,5 +1,10 @@
 # changelog
 
+## v0.2.0 - 2026-11-18
+
+- feat: give the admin a calm light and dark colour scheme
+- feat: split the admin into form, list and tools views
+
 ## v0.1.1 - 2026-11-15
 
 - fix: make the admin link table readable
