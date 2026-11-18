@@ -1,6 +1,6 @@
 # changelog
 
-## Unreleased
+## v0.2.1 - 2026-11-18
 
 - docs: add the plain language rule for documentation
 - docs: rewrite README and guides in plain language
