@@ -2,27 +2,29 @@
 
 [Deutsche Fassung](migrate-from-yourls.de.md)
 
-dalang can read your YOURLS links from a CSV file. Your YOURLS does not have to run for this, you only need its database. That was my own situation: the application was broken, the data was fine.
+dalang can import your YOURLS links from a CSV file (comma-separated values). YOURLS does not have to run for this. You only need its database. This was my own situation: the YOURLS application did not work any more, but the data was complete.
 
-## what comes along, and what does not
+## what dalang imports, and what not
 
-YOURLS keeps its links in one table, `yourls_url` (the prefix `yourls_` can be different, look at `YOURLS_DB_PREFIX` in your `config.php`). dalang takes four of its columns:
+YOURLS stores its links in one table: `yourls_url`. Your table can have a different prefix than `yourls_`. Look for `YOURLS_DB_PREFIX` in the `config.php` of YOURLS. dalang imports four columns from this table:
 
 | YOURLS | dalang | Note |
 |---|---|---|
-| `keyword` | code | Only `a-z`, `0-9` and `-`, at most 40 characters, not starting with `admin`. |
+| `keyword` | code | Only `a-z`, `0-9` and `-`, at most 40 characters. It must not start with `admin`. |
 | `url` | target | Only `http://` and `https://`. |
-| `title` | title | Cut after 1000 characters. |
-| `timestamp` | created | Taken as it is. |
-| `clicks`, `ip` | - | Not imported. dalang does not count and does not store addresses. |
+| `title` | title | dalang cuts it after 1000 characters. |
+| `timestamp` | created | dalang uses the value without changes. |
+| `clicks`, `ip` | - | dalang does not import them. dalang does not count clicks and does not store IP addresses. |
 
-Rows that do not fit are not imported and not repaired. The import tells you how many it rejected and in which lines, so you can fix them by hand. If your YOURLS uses upper case keywords (the base 62 setting), those rows will be rejected: dalang codes are lower case only.
+The import does not import or repair rows that break these rules. The message tells you how many rows it rejected, and the line numbers. You can then correct these rows yourself.
 
-## 1. export a CSV
+YOURLS has a setting for upper case keywords (base 62). With this setting, keywords can contain upper case letters. dalang rejects these rows, because dalang codes are lower case only.
 
-The file needs the columns in this order: keyword, url, title, timestamp. A header line is fine, more columns after the fourth are ignored. The details are in [csv.md](csv.md).
+## 1. export a CSV file from YOURLS
 
-**With phpMyAdmin or Adminer:** run this query, then export the result as CSV (comma separated, fields enclosed in double quotes).
+The file needs the columns in this order: keyword, url, title, timestamp. A header line is allowed. The import ignores all columns after the fourth. [csv.md](csv.md) has the details.
+
+**With phpMyAdmin or Adminer** (web tools for MySQL databases): run this query. Then export the result as CSV, with commas as separators and fields in double quotes.
 
 ```sql
 SELECT keyword, url, COALESCE(title, '') AS title, timestamp
@@ -30,7 +32,7 @@ FROM yourls_url
 ORDER BY timestamp;
 ```
 
-**On the command line:** the `mysql` client writes tabs, not CSV. This query builds the CSV lines itself:
+**On the command line:** the `mysql` client writes tabs, not CSV. This query creates the CSV lines itself:
 
 ```sh
 mysql -N -r -u USER -p DATABASE -e "
@@ -42,30 +44,30 @@ SELECT CONCAT_WS(',',
 FROM yourls_url ORDER BY timestamp" > links.csv
 ```
 
-Honest note: the import in dalang is tested. This command line I have not run against a live YOURLS database. Check the result: `wc -l links.csv` should give the number of your links.
+Please note: the tests cover the import in dalang. But I have not run this command line against a real YOURLS database. Check the result: `wc -l links.csv` must show the number of your links.
 
-The file contains all your links. Do not put it into a git repository.
+The file contains all your links. Do not add it to a git repository.
 
-## 2. import
+## 2. import the file
 
 1. Log in at `/admin/`.
-2. Open "Tools". Under "Backup and import", choose the file and click "Import CSV".
-3. Read the message: `Import done: 250 new, 0 already there, 0 rejected.`
+2. Open the view "Tools". Under "Backup and import", choose the file and click "Import CSV".
+3. Read the message, for example: `Import done: 250 new, 0 already there, 0 rejected.`
 
-Codes that already exist in dalang stay as they are. So you can run the import twice without harm, the second run reports everything as "already there".
+The import does not change codes that already exist in dalang. So you can run the import twice without damage. The second run reports all links as "already there".
 
-The example nginx config accepts uploads up to 2 MB. If your file is bigger, raise `client_max_body_size` (and `upload_max_filesize` in PHP) or split the file.
+The example nginx configuration accepts uploads up to 2 MB. Is your file bigger? Then increase `client_max_body_size` in nginx and `upload_max_filesize` in PHP. Or split the file into smaller files.
 
-## 3. check
+## 3. check the result
 
-Try a few of your old short links:
+Test some of your old short links:
 
 ```sh
 curl -sI https://example.org/your-old-code
 ```
 
-You want to see `301` and your target in `Location`. Then click "Save all links as CSV" once and put the file somewhere safe. Now you have a backup in dalang's own format.
+The answer must show `301`, and your target in the `Location` header. Then click "Save all links as CSV" once. Store the file in a safe place. Now you have a backup in the format of dalang.
 
 ## the old domain
 
-If the short domain stays the same, your old links work again as soon as it points to dalang. Dead targets are imported like all others. dalang does not check if a target is still alive.
+Do you keep the same short domain? Then your old links work again as soon as the domain points to dalang. The import also imports links with targets that no longer exist. dalang does not check if a target still exists.

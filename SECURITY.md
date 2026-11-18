@@ -1,30 +1,39 @@
 # security
 
-## reporting a problem
+## report a problem
 
-Please do not open a public issue for a security problem. Use GitHub's private reporting instead: on https://github.com/jalogisch/dalang go to "Security", then "Report a vulnerability" (GitHub Security Advisories).
+Please do not open a public issue for a security problem. Use the private reporting of GitHub instead:
 
-Tell me what you did, what happened and what you expected. A request I can repeat with curl is the best report there is.
+1. Open https://github.com/jalogisch/dalang.
+2. Click "Security".
+3. Click "Report a vulnerability" (GitHub Security Advisories).
 
-This is a small project and I maintain it in my spare time. I read every report and I answer, but I promise no fixed time. Fixes go into the newest version only.
+Please tell me three things: what you did, what happened, and what you expected. The best report is a request that I can repeat with curl.
 
-## how it is built
+dalang is a small project. I maintain it in my free time. I read every report and I answer every report, but I cannot promise a fixed response time. I fix problems only in the newest version.
 
-- **Two ways in.** nginx serves no file. `/admin/` runs the admin script, everything else runs the redirect script. Config, database and code can not be fetched.
-- **The public part only reads.** It looks up a code and answers 301, 404 for an unknown path when no fallback address is set, or 503 if the database is not there. It writes nothing and stores nothing about visitors.
-- **Login.** One password, stored as a hash (`password_hash`) in a config file outside the web root, checked with `password_verify`. The session id changes after login. The cookie is `Secure`, `HttpOnly`, `SameSite=Lax` and limited to `/admin/`.
-- **CSRF.** Every POST needs a token from the session, login and logout included. A GET never changes anything. That also holds for the bookmarklet: it only fills in the form.
-- **Guessing.** Only one login attempt every 5 seconds is checked, for everybody together.
-- **Input.** Targets must be `http://` or `https://` with a host. Codes are `a-z`, `0-9`, `-`. SQL only through prepared statements, output only escaped.
-- **Headers.** The admin sends a strict Content Security Policy with a nonce, `no-store` and `noindex`. The example nginx config adds HSTS, `nosniff`, `no-referrer` and `X-Frame-Options: DENY`.
+## how dalang protects itself
 
-## limits I know of
+- **Two entry points.** nginx delivers no files. The path `/admin/` runs the admin script. Every other path runs the redirect script. Nobody can download the configuration, the database or the code.
+- **The public part only reads.** It looks up a code and answers with one of these HTTP status codes:
+  - 301 (moved permanently) for a known code, or for an unknown path when a fallback address is set
+  - 404 (not found) for an unknown path when no fallback address is set
+  - 503 (service unavailable) when the database does not exist yet
 
-- **The login brake is global.** I did not want to store addresses, so the brake does not know who is guessing. Someone who sends wrong passwords all the time can keep you from logging in. The redirects keep working. If that happens to you, put a second lock in front of `/admin/` in your proxy (an address filter or a second password).
-- **`SameSite=Lax`, not `Strict`.** With `Strict` the bookmarklet would ask for the password every time, because it opens the admin from another site. The CSRF token is what protects the actions.
-- **A login lasts 14 days.** Whoever has your unlocked browser has your short links. Use "Log out" on machines that are not yours.
-- **The password is as good as you make it.** The hash script wants 12 characters. Take more.
-- **The CSV is a backup, not a spreadsheet.** Titles come from the pages you shorten, so a title can start with `=`. A spreadsheet program may read that as a formula. Do not open an export in one without thinking.
-- **dalang redirects wherever you tell it.** It does not check targets, not when you create them and not later.
-- **Logs are not my part.** dalang stores nothing about visitors, but your proxy, nginx and php-fpm may. See `docs/install.md`.
-- **Only nginx with php-fpm is tested.** With another server it is your job to make sure nothing but the two scripts is reachable.
+  The public part writes nothing. It stores nothing about visitors.
+- **Login.** There is one password. dalang stores only its hash (with PHP's `password_hash`). The hash is in a configuration file outside the web root. dalang checks the password with `password_verify`. After the login, dalang creates a new session ID. The session cookie has the flags `Secure`, `HttpOnly` and `SameSite=Lax`, and it is valid only for `/admin/`.
+- **CSRF.** CSRF (cross-site request forgery) is an attack where another web site sends requests in your name. Every POST request needs a token from the session. This includes login and logout. A GET request never changes data. This rule also applies to the bookmarklet: it only fills in the form.
+- **Guessing passwords.** dalang checks at most one login attempt every 5 seconds, for all users together.
+- **Input.** A target must start with `http://` or `https://` and must contain a host name. A code contains only `a-z`, `0-9` and `-`. All database queries use prepared statements. dalang escapes all output.
+- **HTTP headers.** The admin page sends a strict Content Security Policy (CSP) with a nonce. It also sends `no-store` and `noindex`. The example nginx configuration adds HSTS (HTTP Strict Transport Security), `nosniff`, `no-referrer` and `X-Frame-Options: DENY`.
+
+## limits that I know of
+
+- **The login delay applies to everybody.** I did not want to store IP addresses. So the delay does not know who sends the login attempts. Someone who sends wrong passwords all the time can block your login. The redirects still work. If this happens, protect `/admin/` a second time in your proxy. Examples are an address filter or a second password.
+- **`SameSite=Lax`, not `Strict`.** The bookmarklet opens the admin page from another web site. With `Strict`, the browser would not send the cookie, and the bookmarklet would ask for the password every time. The CSRF token protects all actions.
+- **A login lasts 14 days.** A person with access to your unlocked browser can change your short links. Use "Log out" on computers that are not yours.
+- **dalang cannot make your password strong.** The hash script requires at least 12 characters. Use more.
+- **The CSV file is a backup, not a spreadsheet.** Titles come from the pages that you shorten. So a title can start with `=`, and a spreadsheet program can read this as a formula. Do not open an export in a spreadsheet program. Use a text editor.
+- **dalang redirects to every target that you enter.** It does not check targets, not when you create a link and not later.
+- **Logs of other programs.** dalang stores nothing about visitors. But your proxy, nginx and php-fpm can write logs. See [docs/install.md](docs/install.md).
+- **Only nginx with php-fpm is tested.** With another web server, you must make sure yourself that only the two scripts are reachable.

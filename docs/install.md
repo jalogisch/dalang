@@ -2,21 +2,27 @@
 
 [Deutsche Fassung](install.de.md)
 
-This is how I run dalang: nginx in front, php-fpm behind it, a reverse proxy that does TLS. It is the only setup I have tested. Apache will probably work with a few rewrite rules, but I ship none and I have not tried it.
+This page describes my own setup. It is the only setup that I have tested:
+
+- nginx (a web server) receives the requests.
+- php-fpm (the PHP process manager) runs the PHP code behind nginx.
+- A reverse proxy in front of nginx handles TLS (the encryption for HTTPS).
+
+Apache may work with some rewrite rules. I do not ship such rules, and I have not tested Apache.
 
 ## what you need
 
-- PHP 8.1 or newer with `pdo_sqlite` and sessions. I test with PHP 8.5 only. The official image `php:8.5-fpm-alpine3.24` has everything, nothing to install.
+- PHP 8.1 or newer, with `pdo_sqlite` and sessions. I test with PHP 8.5 only. The official container image `php:8.5-fpm-alpine3.24` contains everything. You do not need to install anything.
 - nginx with php-fpm.
-- HTTPS. The session cookie is `Secure`.
+- HTTPS. The session cookie has the `Secure` flag, so the browser sends it only over HTTPS.
 
-## 1. get the code
+## 1. download the code
 
 ```sh
 git clone https://github.com/jalogisch/dalang.git /srv/dalang
 ```
 
-The web server only needs to run two files: `public/index.php` and `public/admin/index.php`. Everything else stays outside the web root. PHP needs read access to the code and write access to one folder, the one with the database.
+The web server runs only two files: `public/index.php` and `public/admin/index.php`. All other files stay outside the web root. PHP needs read access to the code. PHP needs write access to one folder only: the folder with the database.
 
 ## 2. password and configuration
 
@@ -26,7 +32,9 @@ cp config.example.php config.php
 php bin/hash-password.php
 ```
 
-The script asks for a password (12 characters or more) and prints a hash. No PHP on the machine? A container does the same:
+The script asks for a password with at least 12 characters. Then it prints a hash.
+
+You have no PHP on the machine? A container does the same:
 
 ```sh
 podman run --rm -it -v "$PWD/bin":/dalang-bin:ro docker.io/library/php:8.5-cli-alpine php /dalang-bin/hash-password.php
@@ -36,23 +44,23 @@ Now edit `config.php`:
 
 | Key | Meaning |
 |---|---|
-| `base_url` | The public address of the shortener, for example `https://example.org`. Used for the short links shown in the admin and for the bookmarklet. |
-| `fallback_url` | Optional. Where everything goes that is not a known code. `https://example.org/about` becomes `https://www.example.org/about`. I use it so the old addresses of an earlier site live on. Leave it empty or delete the line, and everything that is not a known code answers `404`. |
-| `password_hash` | The hash from above. Single quotes, because it contains `$`. |
-| `database` | Path of the SQLite file. The folder must be writable for PHP: SQLite puts a journal file next to it. Keep it out of `public/`. |
+| `base_url` | The public address of your short domain, for example `https://example.org`. dalang uses it for the short links on the admin page and for the bookmarklet. |
+| `fallback_url` | Optional. Every path that is not a known code redirects to this address. Example: `https://example.org/about` redirects to `https://www.example.org/about`. I use this so that old addresses of my earlier site still work. If the value is empty or the line is missing, every unknown path gets HTTP status 404 (not found). |
+| `password_hash` | The hash from the script above. Use single quotes, because the hash contains `$`. |
+| `database` | The path of the SQLite file. PHP must be able to write to its folder, because SQLite creates a journal file next to the database. Do not put the file into `public/`. |
 
-`config.php` is in `.gitignore`. Keep it that way.
+`config.php` is listed in `.gitignore`. Do not remove it from there.
 
 ```sh
 mkdir data
-chown www-data data     # or whatever user your php-fpm runs as
+chown www-data data     # use the user of your php-fpm
 ```
 
 ## 3. nginx
 
-[deploy/nginx.conf](../deploy/nginx.conf) is an example, not a finished setup. Take it and change three things: `listen`, the path `/app` and `fastcgi_pass`.
+[deploy/nginx.conf](../deploy/nginx.conf) is an example. It is not a finished setup. Copy it and change three things: `listen`, the path `/app` and `fastcgi_pass`.
 
-The idea behind it: nginx serves no file. There are two fixed ways in, and both name their script directly:
+The main idea: nginx delivers no files. There are two fixed entry points, and each one names its script directly:
 
 ```nginx
 location ^~ /admin/ {
@@ -68,32 +76,38 @@ location / {
 }
 ```
 
-Please keep the `if` line. nginx decodes a path before it picks a location, so `/x%2F..%2Fadmin/` ends up at the admin too. A proxy in front of nginx may read the same path differently. If you protect `/admin` in that proxy as well (an extra password, an address filter), such a path would slip past it. With the check on the raw address the admin answers at exactly `/admin/` and nowhere else.
+Please keep the `if` line. Here is why:
+
+- nginx decodes a path before it chooses a `location` block. So a path like `/x%2F..%2Fadmin/` also reaches the admin page.
+- A proxy in front of nginx can read the same path in a different way.
+- Maybe you protect `/admin` in that proxy too, for example with a second password or an address filter. Such a path would then avoid this protection.
+
+The `if` line checks the raw address. With it, the admin page answers only at exactly `/admin/`. The three views of the admin page use the same address with a query, for example `/admin/?view=links`.
 
 ## 4. first visit
 
-Open `https://example.org/admin/` and log in. The first visit creates the database. Until then, short codes answer with 503. That is on purpose: without a database I do not know if a code exists, and browsers remember a wrong 301 for a long time.
+Open `https://example.org/admin/` and log in. The first visit creates the database. Before that, every short code gets HTTP status 503 (service unavailable). I chose this on purpose: without a database, dalang cannot know if a code exists. A wrong 301 would be a problem, because browsers remember a 301 for a long time.
 
-Then create a link and try it:
+Then create a link and test it:
 
 ```sh
 curl -sI https://example.org/your-code
 ```
 
-## things to know
+## important details
 
-- **Session.** A login lasts 14 days, so the bookmarklet does not ask for the password every time. "Log out" ends it at once. Sessions are PHP's own files. If they live in a container's `/tmp`, a restart logs you out. That does no harm.
-- **Logs.** The example config has `access_log off`, and dalang itself stores nothing about visitors. But look at the rest of your chain: the nginx error log, your reverse proxy and php-fpm can all write logs. The official PHP image logs every request with path and time (not the visitor's address) to the container output. Turn that off if you do not want it.
-- **Backup.** "Save all links as CSV" in the admin is the backup, "Import CSV" is the restore. It is the same format in both directions, see [csv.md](csv.md). You can also just copy the SQLite file.
-- **301 sticks.** Browsers remember a 301. If you delete a link and reuse the code for another target, people who used the old one may still land at the old target.
-- **Update.** `git pull`. There is no migration step in 0.1.0. Versions follow Semantic Versioning, what changed is in [CHANGELOG.md](../CHANGELOG.md).
+- **Session.** A login lasts 14 days. So the bookmarklet does not ask for the password every time. "Log out" ends the session immediately. PHP stores sessions as files. If these files are in the `/tmp` folder of a container, a restart of the container logs you out. This causes no damage.
+- **Logs.** The example configuration contains `access_log off`. dalang itself stores nothing about visitors. But check the other parts of your setup: the nginx error log, your reverse proxy and php-fpm can all write logs. The official PHP image logs every request with path and time to the container output. It does not log the visitor's IP address. Switch this log off if you do not want it.
+- **Backup.** On the admin page, open "Tools". "Save all links as CSV" creates the backup. "Import CSV" restores it. Both use the same format, see [csv.md](csv.md). You can also copy the SQLite file.
+- **Browsers remember a 301.** Maybe you delete a link and use its code again for another target. Then people who opened the old link can still reach the old target.
+- **Update.** Run `git pull`. Up to version v0.2.0, no update needs a migration step. Versions follow Semantic Versioning. [CHANGELOG.md](../CHANGELOG.md) lists the changes.
 
-## try it locally
+## test it locally
 
 ```sh
-sh deploy/test.sh            # runs all tests and cleans up
+sh deploy/test.sh            # runs all tests and removes everything afterwards
 sh deploy/e2e.sh             # the same in a real browser (Playwright container)
-KEEP=1 sh deploy/test.sh     # leaves it running on http://localhost:8082/admin/
+KEEP=1 sh deploy/test.sh     # keeps the test server running on http://localhost:8082/admin/
 ```
 
-The test password is in `deploy/test-config.php`. With `KEEP=1` you get an empty database to click around in. Stop it with `podman compose -f deploy/compose.yml down`. This setup is for testing only.
+The test password is in `deploy/test-config.php`. With `KEEP=1`, you get a test server with an empty database. Stop it with `podman compose -f deploy/compose.yml down`. This setup is for tests only. Do not use it on a public server.

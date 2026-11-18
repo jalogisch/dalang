@@ -2,78 +2,97 @@
 
 [Deutsche Fassung](README.de.md)
 
-dalang is a small link shortener for one person. `https://example.org/abc` goes to the long address, and a form behind a password lets me add and delete links. PHP and SQLite, about 600 lines, no framework, no Composer, no build step.
+dalang is a small link shortener for one person. A short link like `https://example.org/abc` sends the browser to a long address. I add and delete links on an admin page with a password.
+
+dalang uses PHP (a programming language for web servers) and SQLite (a database in one single file). It has about 600 lines of PHP code. It needs no framework, no Composer (the PHP package manager) and no build step.
 
 ## why
 
-My YOURLS installation broke. When I looked at what I really needed from it, the list was short: redirects, a form, a list, and a way to get my old links back in. Everything else was code I had to keep alive without using it.
+My YOURLS installation stopped working. YOURLS is a bigger link shortener. I made a list of what I really used. The list was short:
 
-So dalang does little, and that is the point. Simple is not bad, it may be exactly right.
+- redirects
+- a form to add links
+- a list of all links
+- a way to import my old links
 
-What it does:
+YOURLS had much more code. I had to maintain that code, but I did not use it. So dalang does only these few things. I chose this on purpose: simple software is easier to maintain.
 
-- A short code redirects with 301 to its target.
-- Everything else redirects to a fallback address, if you set one, path and query included. So the short domain can sit next to your real site, and old addresses live on there. Without a fallback address, everything else answers 404.
-- Admin at `/admin/` with its own login: create (with your own code or a random one), list, delete.
-- CSV export as backup, CSV import as restore. The import also takes a list from YOURLS. The format is written down in [docs/csv.md](docs/csv.md).
-- A bookmarklet, so I do not have to open the admin page first.
-- The admin speaks English and German, picked from your browser language.
+## what dalang does
 
-What it does not do, on purpose:
+- **Redirect.** A browser that opens a short link gets a redirect to the target address. dalang uses HTTP status 301 (moved permanently).
+- **Fallback address.** You can set a fallback address. Every unknown path then redirects there, with path and query. Example: `https://example.org/about` redirects to `https://www.example.org/about`. So old addresses of your main site still work. Without a fallback address, an unknown path gets HTTP status 404 (not found).
+- **Admin page.** The admin page is at `/admin/` and has its own login. It has three views:
+  - **New link:** the form. You enter the target, and optionally your own code and a title. Without a code, dalang creates 5 random characters.
+  - **All links:** a table of all links, newest first, with a "Delete" button for each link.
+  - **Tools:** export, import and the bookmarklet.
+- **Export and import.** The export saves all links as a CSV file (comma-separated values). This file is your backup. The import reads the same format. It also reads a list from YOURLS. [docs/csv.md](docs/csv.md) describes the format.
+- **Bookmarklet.** A bookmarklet is a bookmark that contains a small JavaScript program. With it, you do not have to open the admin page first.
+- **Languages.** The admin page is in English and German. dalang uses the language of your browser.
+- **Colours.** The admin page follows the light or dark setting of your system.
 
-- No click counter, no statistics, no visitor data at all. The public part never writes anything.
-- No editing. Delete the link and create it again with the same code.
-- No users, no API, no QR codes, no search. The list is one table, your browser can search it.
+## what dalang does not do
 
-If you need those, YOURLS, Shlink or Kutt are the better choice. That is fine.
+I left these features out on purpose:
 
-I did not write it alone. An LLM (Claude) helped me to build it. The rules it has to follow are in [CLAUDE.md](CLAUDE.md), and the tests decide what counts as done.
+- **No visitor data.** dalang has no click counter and no statistics. The public part never writes anything.
+- **No editing.** To change a link, delete it. Then create it again with the same code.
+- **No users, no API, no QR codes, no search.** The list is one table. Use the search function of your browser.
+
+Do you need these features? Then YOURLS, Shlink or Kutt are a better choice for you.
+
+I did not write dalang alone. An LLM (a large language model, here Claude) helped me to build it. [CLAUDE.md](CLAUDE.md) contains the rules for the LLM. The tests decide when a change is done.
 
 ## quick start
 
-You need PHP 8.1 or newer with `pdo_sqlite` (I test with PHP 8.5 only), nginx with php-fpm, and HTTPS. The login cookie is marked `Secure`, without HTTPS you can not log in.
+You need:
+
+- PHP 8.1 or newer, with `pdo_sqlite`. I test with PHP 8.5 only.
+- nginx (a web server) with php-fpm (the PHP process manager).
+- HTTPS. The login cookie has the `Secure` flag. Without HTTPS, the browser does not send it, and you cannot log in.
 
 ```sh
 git clone https://github.com/jalogisch/dalang.git
 cd dalang
 cp config.example.php config.php
-php bin/hash-password.php        # asks for a password, prints the hash
-mkdir data                       # must be writable for the PHP user
+php bin/hash-password.php        # asks for a password and prints its hash
+mkdir data                       # the PHP user must be able to write here
 ```
 
-Put the hash and your addresses into `config.php`:
+Write the hash and your addresses into `config.php`:
 
 ```php
 return [
     'base_url' => 'https://example.org',          // your short domain
-    'fallback_url' => 'https://www.example.org',  // where unknown paths go; leave it out and they answer 404
+    'fallback_url' => 'https://www.example.org',  // target for unknown paths; without this line they get 404
     'password_hash' => '$2y$12$...',              // from bin/hash-password.php, in single quotes
     'database' => __DIR__ . '/data/links.sqlite',
 ];
 ```
 
-Then point nginx at it. [deploy/nginx.conf](deploy/nginx.conf) is an example to start from. Open `https://example.org/admin/`. The details, and what to watch out for, are in [docs/install.md](docs/install.md).
+Then configure nginx. Start with the example [deploy/nginx.conf](deploy/nginx.conf). Open `https://example.org/admin/` in your browser. [docs/install.md](docs/install.md) has all details and warnings.
 
-Coming from YOURLS? See [docs/migrate-from-yourls.md](docs/migrate-from-yourls.md).
+Do you move from YOURLS? Read [docs/migrate-from-yourls.md](docs/migrate-from-yourls.md).
 
 ## bookmarklet
 
-The admin page has a link called "Shorten with dalang". Drag it into your bookmarks bar. A click on it, on any page, opens the dalang form in a new tab with the address and the title already filled in. You choose a code or leave it empty, click "Create", and get the short link in big letters with a "Copy" button.
+Open the view "Tools" on the admin page. There you find a button "Shorten with dalang". Drag this button into the bookmarks bar of your browser.
 
-Two honest notes:
+Then open any web page and click the bookmark. dalang opens the form in a new tab. The address and the title of the page are already in the form. You enter a code or leave the field empty. Then you click "Create". dalang shows the new short link in large text, with a "Copy" button.
 
-- The bookmarklet only opens the form. Nothing is created until you click "Create". If a plain link could create short links, every web page you visit could do it for you.
-- A bookmarklet is a bit of JavaScript that runs on the page you are looking at. Some pages forbid that with a strict Content Security Policy, and then the browser may block it. I can not fix that from my side. On those pages, copy the address and open `/admin/` by hand.
+Two notes:
 
-## security, in short
+- The bookmarklet only opens the form. dalang creates the link only after you click "Create". This is a security rule. If a simple link could create short links, every web page could create links in your name.
+- The bookmarklet runs JavaScript on the page that you look at. Some pages forbid this with a strict Content Security Policy (CSP). On these pages, the browser can block the bookmarklet. I cannot change that in dalang. On these pages, copy the address and open `/admin/` yourself.
 
-- The password is stored as a hash (`password_hash`), never in clear text.
-- Every change is a POST with a CSRF token. A GET changes nothing.
-- Only one login attempt every 5 seconds is checked, for everybody together. This slows down guessing without storing any address.
-- Targets must be `http://` or `https://`. No `javascript:`, no `data:`.
-- nginx serves no file at all. There are two ways in, the redirect and the admin. The config and the database can not be fetched.
+## security in short
 
-More, and the limits I know of, in [SECURITY.md](SECURITY.md).
+- dalang stores only a hash of the password (with PHP's `password_hash`), never the password itself.
+- Every change needs a POST request with a CSRF token. CSRF (cross-site request forgery) is an attack where another web site sends requests in your name. The token blocks this. A GET request never changes data.
+- dalang checks at most one login attempt every 5 seconds, for all users together. This makes guessing slow. dalang does not store IP addresses for this.
+- A target must start with `http://` or `https://`. dalang rejects `javascript:` and `data:`.
+- nginx delivers no files. There are only two entry points: the redirect and the admin page. Nobody can download the configuration or the database.
+
+[SECURITY.md](SECURITY.md) has more details and the limits that I know of.
 
 ## tests
 
@@ -81,35 +100,54 @@ More, and the limits I know of, in [SECURITY.md](SECURITY.md).
 sh deploy/test.sh
 ```
 
-This needs Podman (or `ENGINE=docker`), curl and git, no PHP on your machine. It starts nginx and php-fpm on `127.0.0.1:8082`, runs about 160 checks with curl and cleans up again.
+You need Podman (or Docker with `ENGINE=docker`), curl and git. You do not need PHP on your computer. The script starts nginx and php-fpm on `127.0.0.1:8082`. Then it runs about 170 checks with curl. At the end, it removes the containers and the test data.
 
 ```sh
 sh deploy/e2e.sh
 ```
 
-This is the same in a real browser. A Chromium in a Playwright container logs in, creates links through the form (with its own code, with a random one, and prefilled like the bookmarklet does it), reads the short link from the page and follows it to the target. About 30 checks, then everything is stopped and removed. The Playwright image is big (about 2.5 GB), and every run fetches the npm package, so it needs internet.
+This script runs about 35 checks in a real browser (end-to-end test). It uses Chromium in a Playwright container. The browser logs in and creates links with the form. It tests three cases: with its own code, with a random code, and with a form that the bookmarklet filled in. Then it opens each short link and checks the target. At the end, it removes everything. The Playwright image is large (about 2.5 GB). Every run downloads the npm package, so the test needs internet access.
 
 ## contributing and releasing
 
-One commit is one change: one thing, readable on its own, easy to take back. The subject line follows [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:` or `refactor:`, then a short sentence in English, in the imperative. A `!` after the type (`feat!:`) or a `BREAKING CHANGE:` line in the body marks a break.
+**One commit contains one change.** Each commit must be readable on its own and easy to revert.
 
-I am this strict because the commit subjects are the changelog. `bin/changelog.sh` writes [CHANGELOG.md](CHANGELOG.md) new from `git log`: one line per commit, one section per version tag, the newest on top, and above them "Unreleased". A GitHub Action (`.github/workflows/changelog.yml`) runs the script after every push to `main` and commits the file if it changed. So do not edit CHANGELOG.md by hand, the next run would throw your edit away.
+**The subject line follows [Conventional Commits](https://www.conventionalcommits.org/).** It starts with a type: `feat:`, `fix:`, `docs:`, `test:`, `chore:` or `refactor:`. Then follows a short sentence in English, in the imperative ("add", not "added"). A change that breaks something has a `!` after the type (`feat!:`), or a line `BREAKING CHANGE:` in the body.
 
-Versions follow [Semantic Versioning](https://semver.org/), the tags are named `vMAJOR.MINOR.PATCH`. A `fix` raises the patch number, a `feat` the minor number, a break the major number. Before 1.0.0 a break raises the minor number only. The version lives in the git tag and nowhere else.
+**The commit subjects are the changelog.** That is why I am strict about them. `bin/changelog.sh` creates [CHANGELOG.md](CHANGELOG.md) from `git log`:
 
-A release goes like this:
+- one line for each commit
+- one section for each version tag, newest first
+- a section "Unreleased" at the top
+
+A GitHub Action (`.github/workflows/changelog.yml`) runs the script after every push to `main`. If the file changed, the Action commits it. So do not edit CHANGELOG.md yourself. The next run would delete your change.
+
+**Versions follow [Semantic Versioning](https://semver.org/).** The tags have the form `vMAJOR.MINOR.PATCH`, for example `v0.2.0`.
+
+- A `fix` increases the PATCH number.
+- A `feat` increases the MINOR number.
+- A breaking change increases the MAJOR number. Before version 1.0.0, a breaking change increases only the MINOR number.
+
+The version exists only in the git tag. The code does not contain it.
+
+These are the steps for a release. Replace `vX.Y.Z` with the new version:
 
 ```sh
 sh deploy/test.sh && sh deploy/e2e.sh     # both must end with ALL OK
-sh bin/changelog.sh v0.2.0                # the open commits now stand under "v0.2.0 - <today>"
+sh bin/changelog.sh vX.Y.Z                # moves the open commits under "vX.Y.Z - <today>"
 git commit -m 'chore: update changelog' CHANGELOG.md
-git tag v0.2.0
-git push origin main v0.2.0
+git tag vX.Y.Z
+git push origin main vX.Y.Z
 ```
 
 ## the name
 
-"Da lang" is German for "this way" - what you say when you point someone down the right street. And in Indonesian and Javanese a dalang is the puppeteer of the wayang shadow theatre, the one behind the screen who makes the figures move. Both fit a thing that stands in the back and sends people on.
+The name has two meanings.
+
+1. In German, "da lang" means "this way". People say it when they show someone the right direction.
+2. In Indonesian and Javanese, a dalang is the puppet master of the wayang shadow theatre. The dalang sits behind the screen and moves the figures.
+
+Both meanings fit dalang: it works in the background and sends people to the right place.
 
 ## license
 

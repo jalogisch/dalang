@@ -2,27 +2,29 @@
 
 [English version](migrate-from-yourls.md)
 
-dalang kann deine YOURLS-Links aus einer CSV-Datei einlesen. Dein YOURLS muss dafür nicht laufen, du brauchst nur seine Datenbank. So war es bei mir: Die Anwendung war kaputt, die Daten waren in Ordnung.
+dalang kann deine YOURLS-Links aus einer CSV-Datei (Werte mit Komma getrennt) einlesen. YOURLS muss dafür nicht laufen. Du brauchst nur seine Datenbank. So war es bei mir: Die Anwendung YOURLS lief nicht mehr, aber die Daten waren vollständig.
 
-## was mitkommt und was nicht
+## was dalang übernimmt und was nicht
 
-YOURLS hält seine Links in einer Tabelle, `yourls_url` (das Präfix `yourls_` kann anders sein, schau nach `YOURLS_DB_PREFIX` in deiner `config.php`). dalang nimmt vier Spalten daraus:
+YOURLS speichert seine Links in einer Tabelle: `yourls_url`. Deine Tabelle kann ein anderes Präfix als `yourls_` haben. Such nach `YOURLS_DB_PREFIX` in der `config.php` von YOURLS. dalang übernimmt vier Spalten aus dieser Tabelle:
 
 | YOURLS | dalang | Hinweis |
 |---|---|---|
-| `keyword` | Kürzel | Nur `a-z`, `0-9` und `-`, höchstens 40 Zeichen, nicht mit `admin` am Anfang. |
+| `keyword` | Kürzel | Nur `a-z`, `0-9` und `-`, höchstens 40 Zeichen. Es darf nicht mit `admin` beginnen. |
 | `url` | Ziel | Nur `http://` und `https://`. |
-| `title` | Titel | Nach 1000 Zeichen abgeschnitten. |
-| `timestamp` | Angelegt | Wird übernommen, wie es ist. |
-| `clicks`, `ip` | - | Wird nicht übernommen. dalang zählt nicht und speichert keine Adressen. |
+| `title` | Titel | dalang kürzt ihn nach 1000 Zeichen. |
+| `timestamp` | Angelegt | dalang übernimmt den Wert unverändert. |
+| `clicks`, `ip` | - | dalang übernimmt sie nicht. dalang zählt keine Klicks und speichert keine IP-Adressen. |
 
-Zeilen, die nicht passen, werden nicht eingelesen und nicht repariert. Das Einlesen sagt dir, wie viele es abgelehnt hat und in welchen Zeilen. So kannst du sie von Hand richten. Wenn dein YOURLS Kürzel mit Großbuchstaben benutzt (die Einstellung Basis 62), werden diese Zeilen abgelehnt: Kürzel in dalang sind immer klein.
+Zeilen, die diese Regeln brechen, liest das Einlesen nicht ein und repariert sie nicht. Die Meldung sagt dir, wie viele Zeilen es abgelehnt hat, und nennt die Zeilennummern. Diese Zeilen kannst du dann selbst korrigieren.
 
-## 1. CSV exportieren
+YOURLS hat eine Einstellung für Kürzel mit Großbuchstaben (Basis 62). Mit dieser Einstellung können Kürzel Großbuchstaben enthalten. dalang lehnt diese Zeilen ab, weil Kürzel in dalang nur Kleinbuchstaben haben.
 
-Die Datei braucht die Spalten in dieser Reihenfolge: keyword, url, title, timestamp. Eine Kopfzeile ist in Ordnung, weitere Spalten nach der vierten werden nicht beachtet. Die Einzelheiten stehen in [csv.de.md](csv.de.md).
+## 1. CSV-Datei aus YOURLS exportieren
 
-**Mit phpMyAdmin oder Adminer:** Führ diese Abfrage aus und exportier das Ergebnis als CSV (Komma als Trenner, Felder in doppelten Anführungszeichen).
+Die Datei braucht die Spalten in dieser Reihenfolge: keyword, url, title, timestamp. Eine Kopfzeile ist erlaubt. Das Einlesen ignoriert alle Spalten nach der vierten. Die Einzelheiten stehen in [csv.de.md](csv.de.md).
+
+**Mit phpMyAdmin oder Adminer** (Web-Werkzeuge für MySQL-Datenbanken): Führ diese Abfrage aus. Exportier dann das Ergebnis als CSV, mit Komma als Trennzeichen und Feldern in doppelten Anführungszeichen.
 
 ```sql
 SELECT keyword, url, COALESCE(title, '') AS title, timestamp
@@ -30,7 +32,7 @@ FROM yourls_url
 ORDER BY timestamp;
 ```
 
-**Auf der Kommandozeile:** Das Programm `mysql` schreibt Tabulatoren, kein CSV. Diese Abfrage baut die CSV-Zeilen selbst:
+**Auf der Kommandozeile:** Das Programm `mysql` schreibt Tabulatoren, kein CSV. Diese Abfrage erzeugt die CSV-Zeilen selbst:
 
 ```sh
 mysql -N -r -u BENUTZER -p DATENBANK -e "
@@ -42,30 +44,30 @@ SELECT CONCAT_WS(',',
 FROM yourls_url ORDER BY timestamp" > links.csv
 ```
 
-Ehrlicher Hinweis: Das Einlesen in dalang ist getestet. Diese Kommandozeile habe ich nicht gegen eine laufende YOURLS-Datenbank ausgeführt. Prüf das Ergebnis: `wc -l links.csv` sollte die Zahl deiner Links ergeben.
+Bitte beachte: Die Tests prüfen das Einlesen in dalang. Diese Kommandozeile habe ich aber nicht mit einer echten YOURLS-Datenbank ausgeführt. Prüf das Ergebnis: `wc -l links.csv` muss die Zahl deiner Links zeigen.
 
-In der Datei stehen alle deine Links. Leg sie nicht in ein Git-Repo.
+Die Datei enthält alle deine Links. Leg sie nicht in ein Git-Repository.
 
-## 2. einlesen
+## 2. datei einlesen
 
 1. Melde dich unter `/admin/` an.
-2. Öffne „Werkzeuge“. Wähle unter „Sichern und einlesen“ die Datei und klick „CSV einlesen“.
-3. Lies die Meldung: `Import fertig: 250 neu, 0 schon vorhanden, 0 abgelehnt.`
+2. Öffne die Ansicht „Werkzeuge“. Wähle unter „Sichern und einlesen“ die Datei und klick „CSV einlesen“.
+3. Lies die Meldung, zum Beispiel: `Import fertig: 250 neu, 0 schon vorhanden, 0 abgelehnt.`
 
-Kürzel, die es in dalang schon gibt, bleiben, wie sie sind. Du kannst also zweimal einlesen, ohne dass etwas passiert. Der zweite Lauf meldet alles als „schon vorhanden“.
+Das Einlesen ändert keine Kürzel, die es in dalang schon gibt. Darum kannst du zweimal einlesen, ohne Schaden. Der zweite Lauf meldet alle Links als „schon vorhanden“.
 
-Die nginx-Beispielkonfiguration nimmt Dateien bis 2 MB an. Ist deine Datei größer, erhöh `client_max_body_size` (und `upload_max_filesize` in PHP) oder teil die Datei.
+Die Beispiel-Konfiguration für nginx nimmt Uploads bis 2 MB an. Ist deine Datei größer? Dann erhöhe `client_max_body_size` in nginx und `upload_max_filesize` in PHP. Oder teil die Datei in kleinere Dateien.
 
-## 3. prüfen
+## 3. ergebnis prüfen
 
-Probier ein paar deiner alten Kurzlinks:
+Teste einige deiner alten Kurzlinks:
 
 ```sh
 curl -sI https://example.org/dein-altes-kuerzel
 ```
 
-Du willst `301` sehen und dein Ziel in `Location`. Dann klick einmal „Alle Links als CSV sichern“ und leg die Datei sicher ab. Jetzt hast du eine Sicherung im eigenen Format von dalang.
+Die Antwort muss `301` zeigen, und dein Ziel im Header `Location`. Klick dann einmal „Alle Links als CSV sichern“. Bewahre die Datei an einem sicheren Ort auf. Jetzt hast du eine Sicherung im Format von dalang.
 
 ## die alte domain
 
-Bleibt die kurze Domain dieselbe, gehen deine alten Links wieder, sobald sie auf dalang zeigt. Tote Ziele werden eingelesen wie alle anderen. dalang prüft nicht, ob ein Ziel noch lebt.
+Behältst du dieselbe kurze Domain? Dann funktionieren deine alten Links wieder, sobald die Domain auf dalang zeigt. Das Einlesen übernimmt auch Links mit Zielen, die es nicht mehr gibt. dalang prüft nicht, ob ein Ziel noch existiert.
