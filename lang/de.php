@@ -31,7 +31,7 @@ return [
     'add' => 'Anlegen',
     'csv_heading' => 'Sichern und einlesen',
     'export' => 'Alle Links als CSV sichern',
-    'export_hint' => 'das ist deine Sicherung. Das Einlesen unten versteht dasselbe Format.',
+    'export_hint' => 'Das ist deine Sicherung. Das Einlesen unten versteht dasselbe Format.',
     'import_file' => 'CSV-Datei',
     'import_hint' => 'Spalten: Kürzel, Ziel, Titel, Datum. Kürzel, die es schon gibt, bleiben, wie sie sind.',
     'import' => 'CSV einlesen',

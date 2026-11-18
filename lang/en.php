@@ -31,7 +31,7 @@ return [
     'add' => 'Create',
     'csv_heading' => 'Backup and import',
     'export' => 'Save all links as CSV',
-    'export_hint' => 'this is your backup. The import below reads the same format.',
+    'export_hint' => 'This is your backup. The import below reads the same format.',
     'import_file' => 'CSV file',
     'import_hint' => 'Columns: code, target, title, date. Codes that already exist stay as they are.',
     'import' => 'Import CSV',
