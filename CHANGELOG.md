@@ -1,5 +1,9 @@
 # changelog
 
+## Unreleased
+
+- docs: rewrite README and guides in plain language
+
 ## v0.2.0 - 2026-11-18
 
 - feat: give the admin a calm light and dark colour scheme
